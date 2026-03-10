@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Pasajero – SCZ LIVE</title>
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+    <style>
+        /* ── RESET & BASE ─────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --violet: #8F00FF;
+            --green:  #39FF14;
+            --red:    #ff3131;
+            --bg:     #0a0a0a;
+            --card:   #161616;
+            --border: #2a2a2a;
+            --muted:  #555;
+        }
+
+        html, body {
+            width: 100%; height: 100%;
+            background: var(--bg);
+            color: #fff;
+            font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        /* ── SPLASH ───────────────────────────────────── */
+        #splash {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--bg);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 14px;
+        }
+        #splash .bolt {
+            font-size: 72px;
+            filter: drop-shadow(0 0 30px var(--violet));
+            animation: boltPop 0.8s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        #splash h1 {
+            font-size: 30px; font-weight: 900;
+            letter-spacing: 8px; text-transform: uppercase;
+            animation: fadeUp 0.6s 0.5s both;
+        }
+        #splash p {
+            font-size: 11px; color: var(--muted);
+            letter-spacing: 3px; text-transform: uppercase;
+            animation: fadeUp 0.6s 0.7s both;
+        }
+        .splash-loader {
+            margin-top: 36px;
+            width: 36px; height: 36px;
+            border: 3px solid #222;
+            border-top-color: var(--violet);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite, fadeUp 0.6s 0.9s both;
+        }
+
+        @keyframes boltPop  { from { transform: scale(0.2) rotate(-30deg); opacity:0; } to { transform: scale(1) rotate(0); opacity:1; } }
+        @keyframes fadeUp   { from { transform: translateY(18px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+        @keyframes spin     { to   { transform: rotate(360deg); } }
+
+        /* ── LAYOUT PRINCIPAL ─────────────────────────── */
+        #app {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+        }
+
+        /* ── MAPA ─────────────────────────────────────── */
+        #map-wrap {
+            position: relative;
+            flex: 1 1 0;        /* ocupa todo el espacio disponible */
+            min-height: 0;      /* crítico para que flex funcione */
+        }
+
+        #map {
+            position: absolute; inset: 0;  /* fill exacto del contenedor */
+            background: #111;
+        }
+
+        /* Pin de destino centrado */
+        #center-pin {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -100%);
+            z-index: 1000;
+            display: flex; flex-direction: column; align-items: center;
+            pointer-events: none;
+            transition: opacity 0.25s;
+        }
+        #center-pin.oculto { opacity: 0; pointer-events: none; }
+
+        #btn-fijar {
+            pointer-events: auto;
+            background: #fff; color: #000;
+            border: none; border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 11px; font-weight: 800;
+            letter-spacing: 1px; text-transform: uppercase;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+            margin-bottom: 6px; cursor: pointer;
+        }
+        #center-pin .pin-emoji { font-size: 30px; line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7)); }
+
+        /* Badge línea activa */
+        #mapa-badge {
+            position: absolute; bottom: 14px; left: 14px; z-index: 1000;
+            background: rgba(10,10,10,0.9);
+            border: 1px solid var(--green);
+            border-radius: 30px; padding: 6px 16px;
+            font-size: 11px; font-weight: 700; color: var(--green);
+            letter-spacing: 1px; display: none;
+        }
+
+        /* ── PANEL ────────────────────────────────────── */
+        #panel {
+            flex: 0 0 auto;
+            background: var(--card);
+            border-top: 1px solid var(--border);
+            border-radius: 26px 26px 0 0;
+            padding: 18px 18px 28px;
+            display: flex; flex-direction: column; gap: 12px;
+            box-shadow: 0 -16px 40px rgba(0,0,0,0.9);
+            z-index: 500;
+            transform: translateY(100%);
+            animation: panelUp 0.7s 3.4s cubic-bezier(0.16,1,0.3,1) forwards;
+        }
+        @keyframes panelUp { to { transform: translateY(0); } }
+
+        /* Handle visual */
+        .handle {
+            width: 38px; height: 4px;
+            background: var(--border); border-radius: 4px;
+            margin: 0 auto 4px;
+        }
+
+        /* Tarjeta de destino */
+        .dest-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 14px; padding: 13px 14px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .dest-card.activo { border-color: var(--green); }
+        .dest-icon { font-size: 20px; flex-shrink: 0; }
+        .dest-body { flex: 1; overflow: hidden; }
+        .dest-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+        .dest-addr  { font-size: 13px; font-weight: 600; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #btn-cambiar {
+            background: transparent; border: 1px solid var(--violet);
+            color: var(--violet); padding: 7px 12px;
+            border-radius: 10px; font-size: 10px; font-weight: 700;
+            cursor: pointer; text-transform: uppercase; flex-shrink: 0;
+            display: none;
+        }
+
+        /* Select línea */
+        select {
+            width: 100%; padding: 14px 12px;
+            border-radius: 14px; border: 1px solid var(--border);
+            background: var(--bg); color: #fff;
+            font-size: 15px; outline: none;
+            -webkit-appearance: none; appearance: none;
+        }
+        select:focus { border-color: var(--violet); }
+
+        /* Botón principal */
+        #btn-buscar {
+            width: 100%; padding: 17px;
+            background: var(--violet); color: #fff; border: none;
+            border-radius: 16px; font-weight: 800; font-size: 13px;
+            letter-spacing: 2px; text-transform: uppercase;
+            cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+        }
+        #btn-buscar:active { opacity: 0.8; transform: scale(0.98); }
+        #btn-buscar.rastreando {
+            background: var(--bg); border: 1px solid var(--violet);
+            color: var(--violet);
+        }
+
+        /* Stats */
+        .stats {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+        }
+        .stat {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 13px; padding: 12px 8px; text-align: center;
+        }
+        .stat-val {
+            font-size: 18px; font-weight: 800; color: var(--green);
+            display: block; line-height: 1;
+        }
+        .stat-val.lejos { color: var(--red); }
+        .stat-lbl { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+        /* ── PUNTO USUARIO ────────────────────────────── */
+        .user-dot {
+            width: 14px; height: 14px;
+            background: var(--violet); border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 0 5px rgba(143,0,255,0.25);
+            animation: userPulse 2.2s ease-in-out infinite;
+        }
+        @keyframes userPulse {
+            0%,100% { box-shadow: 0 0 0 4px rgba(143,0,255,0.25); }
+            50%      { box-shadow: 0 0 0 10px rgba(143,0,255,0.05); }
+        }
+
+        /* ── TOAST ────────────────────────────────────── */
+        #toast {
+            position: fixed; top: 20px; left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(18,18,18,0.97);
+            border: 1px solid var(--violet);
+            border-radius: 18px; padding: 13px 18px;
+            display: flex; align-items: center; gap: 12px;
+            z-index: 9998; width: 88%; max-width: 380px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
+        }
+        #toast.visible { transform: translateX(-50%) translateY(0); }
+        #t-icon  { font-size: 22px; flex-shrink: 0; }
+        #t-title { font-size: 10px; font-weight: 800; color: var(--green); letter-spacing: 1px; text-transform: uppercase; }
+        #t-msg   { font-size: 12px; color: #bbb; margin-top: 2px; }
+
+        /* ── POPUP VOTOS ──────────────────────────────── */
+        .vp { padding: 8px 4px; text-align: center; min-width: 150px; }
+        .vp b { font-size: 13px; display: block; margin-bottom: 10px; }
+        .vp-row { display: flex; gap: 8px; justify-content: center; }
+        .vb {
+            border: none; padding: 10px 16px; border-radius: 10px;
+            font-weight: 800; font-size: 12px; cursor: pointer; text-transform: uppercase;
+        }
+        .vb-ll { background: var(--red);   color: #fff; }
+        .vb-va { background: var(--green); color: #000; }
+
+        /* ── LEAFLET OVERRIDES ────────────────────────── */
+        .leaflet-control-layers {
+            background: var(--card) !important; color: #fff !important;
+            border: 1px solid var(--border) !important; border-radius: 13px !important;
+            font-family: inherit !important;
+        }
+        .leaflet-control-layers-expanded { padding: 10px !important; }
+        .leaflet-control-layers-base label { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
+        .leaflet-popup-content-wrapper {
+            background: var(--card) !important; color: #fff !important;
+            border-radius: 16px !important; border: 1px solid var(--border) !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.7) !important;
+        }
+        .leaflet-popup-tip { background: var(--card) !important; }
+        .leaflet-popup-close-button { color: var(--muted) !important; font-size: 18px !important; }
+    </style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+    <div class="bolt">⚡</div>
+    <h1>SCZ LIVE</h1>
+    <p>Santa Cruz · Bolivia</p>
+    <div class="splash-loader"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">
+    <div id="t-icon">🚌</div>
+    <div>
+        <div id="t-title">SCZ LIVE</div>
+        <div id="t-msg">Iniciando…</div>
+    </div>
+</div>
+
+<audio id="snd" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+<!-- APP -->
+<div id="app">
+    <div id="map-wrap">
+        <div id="center-pin">
+            <button id="btn-fijar">FIJAR AQUÍ</button>
+            <div class="pin-emoji">📍</div>
+        </div>
+        <div id="mapa-badge"></div>
+        <div id="map"></div>
+    </div>
+
+    <div id="panel">
+        <div class="handle"></div>
+
+        <div class="dest-card" id="dest-card">
+            <div class="dest-icon">📍</div>
+            <div class="dest-body">
+                <div class="dest-label">Tu destino</div>
+                <div class="dest-addr" id="dest-addr">Localizando GPS…</div>
+            </div>
+            <button id="btn-cambiar">Cambiar</button>
+        </div>
+
+        <select id="sel-linea">
+            <option value="">¿Qué línea buscas?</option>
+        </select>
+
+        <button id="btn-buscar">BUSCAR MICRO</button>
+
+        <div class="stats">
+            <div class="stat"><span class="stat-val" id="st-id">--</span><div class="stat-lbl">Interno</div></div>
+            <div class="stat"><span class="stat-val" id="st-time">--</span><div class="stat-lbl">Llega en</div></div>
+            <div class="stat"><span class="stat-val" id="st-dist">--</span><div class="stat-lbl">Distancia</div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   CARGADOR DE LIBRERÍAS — carga dinámicamente
+   Leaflet y Firebase, luego arranca la app.
+   Funciona tanto en file:// como en https://
+═══════════════════════════════════════════════ */
+(function () {
+    var LIBS = [
+        { id: 'leaflet-css', tag: 'link',   attrs: { rel: 'stylesheet', href: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' } },
+        { id: 'leaflet-js',  tag: 'script', attrs: { src: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js' } },
+        { id: 'fb-app',      tag: 'script', attrs: { src: 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js' } },
+        { id: 'fb-db',       tag: 'script', attrs: { src: 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js' } }
+    ];
+
+    var loaded = 0;
+    var total  = LIBS.filter(function(l){ return l.tag === 'script'; }).length + 1; // +1 para CSS
+
+    function onReady() {
+        loaded++;
+        if (loaded >= total) {
+            // Todo listo — arrancar app
+            setTimeout(function () { initApp(); }, 50);
+        }
+    }
+
+    LIBS.forEach(function (lib) {
+        var el = document.createElement(lib.tag);
+        Object.keys(lib.attrs).forEach(function (k) { el[k] = lib.attrs[k]; });
+        el.onload = onReady;
+        el.onerror = function () {
+            mostrarError('Sin conexión. Abrí la app desde <b>Netlify</b>, no como archivo local.');
+        };
+        document.head.appendChild(el);
+    });
+
+    function mostrarError(msg) {
+        var s = document.getElementById('splash');
+        s.innerHTML = '<div style="padding:30px;text-align:center;max-width:300px">' +
+            '<div style="font-size:50px;margin-bottom:20px">⚠️</div>' +
+            '<p style="color:#fff;font-size:15px;line-height:1.6">' + msg + '</p>' +
+            '<p style="color:#555;font-size:12px;margin-top:16px">SCZ LIVE necesita internet para funcionar.</p>' +
+            '</div>';
+    }
+})();
+
+/* ═══════════════════════════════════════════════
+   SPLASH — cierra sí o sí a los 4s
+═══════════════════════════════════════════════ */
+(function () {
+    var done = false;
+    function cerrar() {
+        if (done) return; done = true;
+        var s = document.getElementById('splash');
+        s.style.transition = 'opacity 0.6s';
+        s.style.opacity = '0';
+        setTimeout(function () { s.style.display = 'none'; }, 650);
+    }
+    setTimeout(cerrar, 4000);
+})();
+
+function initApp() {
+
+/* ═══════════════════════════════════════════════
+   FIREBASE INIT
+═══════════════════════════════════════════════ */
+firebase.initializeApp({
+    apiKey:            "AIzaSyB1NAPQoYVCkaNRoyiaAmBQSjl29RP7Qu0",
+    authDomain:        "microlive-611a2.firebaseapp.com",
+    databaseURL:       "https://microlive-611a2-default-rtdb.firebaseio.com",
+    projectId:         "microlive-611a2",
+    storageBucket:     "microlive-611a2.firebasestorage.app",
+    messagingSenderId: "951096943513",
+    appId:             "1:951096943513:web:6f72a417e2147674526908"
+});
+const db = firebase.database();
+
+/* ═══════════════════════════════════════════════
+   MAPA — se inicializa DESPUÉS de que el DOM
+   esté pintado, para que el div tenga tamaño real
+═══════════════════════════════════════════════ */
+var map, darkLayer, streetLayer;
+
+function initMapa() {
+    darkLayer = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        { attribution: '© CartoDB', maxZoom: 19 }
+    );
+    streetLayer = L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { attribution: '© OpenStreetMap', maxZoom: 19 }
+    );
+
+    map = L.map('map', { zoomControl: false, layers: [darkLayer] })
+           .setView([-17.7833, -63.1821], 15);
+
+
+
+    // Forzar redibujado del mapa (soluciona el mapa negro)
+    setTimeout(function () { map.invalidateSize(); }, 100);
+
+    L.control.layers(
+        { '🌌 Dark': darkLayer, '🗺️ Normal': streetLayer },
+        null, { position: 'topright' }
+    ).addTo(map);
+
+    // Actualizar dirección al mover el mapa — SOLO si el pin está visible y NO hay destino fijado
+    map.on('moveend', function () {
+        var pin = document.getElementById('center-pin');
+        // Solo actualizar dirección si: pin visible + sin destino fijado + pin no oculto por style
+        if (!pin.classList.contains('oculto') 
+            && pin.style.display !== 'none'
+            && !destPos) {
+            var c = map.getCenter();
+            geocodificar(c.lat, c.lng);
+        }
+    });
+}
+
+// Inicializar mapa cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMapa);
+} else {
+    initMapa();
+}
+
+/* ═══════════════════════════════════════════════
+   ESTADO GLOBAL
+═══════════════════════════════════════════════ */
+var userPos     = null;
+var userMarker  = null;
+var destPos     = null;
+var destMarker  = null;
+var busMarkers  = {};
+var fbUnsub     = null;   // función unsubscribe de Firebase
+var lineaActiva = null;
+var misVotos    = {};
+var alertaDada  = false;
+
+/* ═══════════════════════════════════════════════
+   GPS DEL USUARIO
+═══════════════════════════════════════════════ */
+function iniciarGPS() {
+    if (!navigator.geolocation) {
+        toast('GPS no disponible', 'AVISO', '⚠️');
+        return;
+    }
+    navigator.geolocation.watchPosition(
+        function (pos) {
+            var latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+            userPos = latlng;
+            if (!userMarker) {
+                userMarker = L.marker(latlng, {
+                    icon: L.divIcon({ className: '', html: '<div class="user-dot"></div>', iconSize: [14,14] })
+                }).addTo(map);
+                map.setView(latlng, 16);
+                geocodificar(pos.coords.latitude, pos.coords.longitude);
+            } else {
+                userMarker.setLatLng(latlng);
+            }
+        },
+        function () { toast('No se pudo obtener tu GPS', 'GPS', '📡'); },
+        { enableHighAccuracy: true, maximumAge: 0 }
+    );
+}
+
+// Iniciar GPS después de que el mapa esté listo
+setTimeout(iniciarGPS, 500);
+
+/* ═══════════════════════════════════════════════
+   GEOCODIFICACIÓN INVERSA
+═══════════════════════════════════════════════ */
+function geocodificar(lat, lng) {
+    fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=18',
+          { headers: { 'Accept-Language': 'es' } })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+        var partes = d.display_name ? d.display_name.split(',') : [];
+        document.getElementById('dest-addr').innerText =
+            (partes[0] || '') + (partes[1] ? ', ' + partes[1].trim() : '') || 'Ubicación actual';
+    })
+    .catch(function () {
+        document.getElementById('dest-addr').innerText = 'Ubicación actual';
+    });
+}
+
+/* ═══════════════════════════════════════════════
+   CARGAR LÍNEAS DESDE FIREBASE
+═══════════════════════════════════════════════ */
+db.ref('configuracion_lineas').on('value', function (snap) {
+    var sel  = document.getElementById('sel-linea');
+    var data = snap.val();
+    sel.innerHTML = '<option value="">¿Qué línea buscas?</option>';
+    if (data) {
+        Object.keys(data).forEach(function (key) {
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = data[key].nombre;
+            sel.appendChild(opt);
+        });
+    }
+});
+
+/* ═══════════════════════════════════════════════
+   DESTINO — FIJAR / CAMBIAR
+═══════════════════════════════════════════════ */
+document.getElementById('btn-fijar').addEventListener('click', function () {
+    // Capturar destino PRIMERO, antes de cualquier movimiento del mapa
+    destPos = map.getCenter();
+
+    // Ocultar pin INMEDIATAMENTE — antes de cualquier otra operación
+    var pinEl = document.getElementById('center-pin');
+    pinEl.classList.add('oculto');
+    pinEl.style.display = 'none'; // doble seguridad
+
+    document.getElementById('btn-cambiar').style.display = 'block';
+    document.getElementById('dest-card').classList.add('activo');
+
+    // Poner marker de destino
+    if (destMarker) map.removeLayer(destMarker);
+    destMarker = L.marker(destPos, {
+        icon: L.divIcon({ html: '🎯', className: '', iconSize: [28,28], iconAnchor: [14,28] })
+    }).addTo(map);
+
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
+    // flyTo hacia la ubicación del usuario
+    // Si userPos ya existe → volar de inmediato con delay seguro
+    // Si GPS aún no llegó → esperar hasta 5s para que llegue y entonces volar
+    function volarAUbicacion() {
+        if (userPos) {
+            setTimeout(function() {
+                map.flyTo(userPos, 16, { duration: 1.5, easeLinearity: 0.5 });
+            }, 200);
+        } else {
+            // GPS todavía no tiene posición — esperar y reintentar cada 500ms hasta 5s
+            var intentos = 0;
+            var esperar = setInterval(function() {
+                intentos++;
+                if (userPos) {
+                    clearInterval(esperar);
+                    map.flyTo(userPos, 16, { duration: 1.5, easeLinearity: 0.5 });
+                } else if (intentos >= 10) {
+                    clearInterval(esperar);
+                    // Si después de 5s no hay GPS, no hacer nada
+                }
+            }, 500);
+        }
+    }
+    volarAUbicacion();
+
+    toast('Destino marcado en el mapa', 'DESTINO FIJADO', '🎯');
+});
+
+document.getElementById('btn-cambiar').addEventListener('click', function () {
+    var pinEl2 = document.getElementById('center-pin');
+    pinEl2.classList.remove('oculto');
+    pinEl2.style.display = ''; // restaurar display
+    document.getElementById('btn-cambiar').style.display = 'none';
+    document.getElementById('dest-card').classList.remove('activo');
+
+    if (destMarker) { map.removeLayer(destMarker); destMarker = null; }
+    destPos = null;
+    alertaDada = false;
+    pararEscucha();
+    limpiarBuses();
+    resetStats();
+});
+
+/* ═══════════════════════════════════════════════
+   BUSCAR MICRO
+═══════════════════════════════════════════════ */
+document.getElementById('btn-buscar').addEventListener('click', buscarMicro);
+
+function buscarMicro() {
+    var sel      = document.getElementById('sel-linea');
+    var lineaKey = sel.value;
+    var lineaNom = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+
+    if (!lineaKey)  { toast('Elige una línea primero', 'AVISO', '⚠️'); return; }
+    if (!destPos)   { toast('Fija tu destino en el mapa', 'AVISO', '📍'); return; }
+    if (!userPos)   { toast('Esperando tu ubicación GPS', 'AVISO', '📡'); return; }
+    if (lineaKey === lineaActiva) return;
+
+    pararEscucha();
+    limpiarBuses();
+    lineaActiva = lineaKey;
+
+    document.getElementById('mapa-badge').innerText  = lineaNom;
+    document.getElementById('mapa-badge').style.display = 'block';
+    document.getElementById('btn-buscar').textContent = 'RASTREANDO…';
+    document.getElementById('btn-buscar').classList.add('rastreando');
+
+    // Guardar el unsubscribe
+    var refMicros = db.ref('micros/' + lineaKey);
+    refMicros.on('value', function (snap) {
+        procesarMicros(snap, lineaKey, lineaNom);
+    });
+    fbUnsub = function () { refMicros.off(); };
+}
+
+function pararEscucha() {
+    if (fbUnsub) { fbUnsub(); fbUnsub = null; }
+    lineaActiva = null;
+    document.getElementById('mapa-badge').style.display = 'none';
+    document.getElementById('btn-buscar').textContent = 'BUSCAR MICRO';
+    document.getElementById('btn-buscar').classList.remove('rastreando');
+}
+
+/* ═══════════════════════════════════════════════
+   PROCESAR MICROS EN TIEMPO REAL
+═══════════════════════════════════════════════ */
+var TIMEOUT_MS = 35000;
+
+function procesarMicros(snap, lineaKey, lineaNom) {
+    var data  = snap.val();
+    var ahora = Date.now();
+
+    // Eliminar buses que ya no transmiten
+    Object.keys(busMarkers).forEach(function (id) {
+        if (!data || !data[id] || (ahora - data[id].ultimoPulso > TIMEOUT_MS)) {
+            map.removeLayer(busMarkers[id]);
+            delete busMarkers[id];
+        }
+    });
+
+    if (!data || !userPos) { resetStats(); return; }
+
+    var mejorDist = Infinity;
+    var mejorID   = null;
+
+    Object.keys(data).forEach(function (interno) {
+        var m = data[interno];
+        if (!m.lat || !m.lng || (ahora - m.ultimoPulso > TIMEOUT_MS)) return;
+
+        var mPos    = L.latLng(m.lat, m.lng);
+        var esLleno = contarVotos(m.votos_activos, ahora) >= 3;
+        var color   = esLleno ? '#ff3131' : '#39FF14';
+        var label   = esLleno ? 'LLENO' : 'Int. ' + interno;
+
+        var iconHtml =
+            '<div style="display:flex;flex-direction:column;align-items:center">' +
+            '<div style="background:#0a0a0a;color:#fff;padding:2px 9px;border-radius:10px;' +
+                 'font-size:9px;font-weight:800;border:1.5px solid ' + color + ';white-space:nowrap">' +
+                 label +
+            '</div>' +
+            '<div style="font-size:26px;filter:drop-shadow(0 0 7px ' + color + ')">🚌</div>' +
+            '</div>';
+
+        var icon = L.divIcon({ html: iconHtml, className: '', iconSize: [50,50], iconAnchor: [25,50] });
+
+        if (!busMarkers[interno]) {
+            busMarkers[interno] = L.marker(mPos, { icon: icon })
+                .bindPopup(popupVoto(lineaKey, interno), { maxWidth: 200 })
+                .addTo(map);
+        } else {
+            busMarkers[interno].setLatLng(mPos);
+            busMarkers[interno].setIcon(icon);
+        }
+
+        var d = userPos.distanceTo(mPos);
+        if (d < mejorDist) { mejorDist = d; mejorID = interno; }
+    });
+
+    if (mejorID !== null) {
+        actualizarStats(mejorID, mejorDist);
+        if (mejorDist < 400 && !alertaDada) {
+            alertaDada = true;
+            toast(lineaNom + ' · Int. ' + mejorID + ' está llegando', '¡CERCA!', '⚡', true);
+        } else if (mejorDist > 800) {
+            alertaDada = false;
+        }
+    } else {
+        resetStats();
+    }
+}
+
+function contarVotos(votos, ahora) {
+    if (!votos) return 0;
+    var c = 0;
+    Object.values(votos).forEach(function (v) { if (v.tipo === 'lleno' && ahora < v.expira) c++; });
+    return c;
+}
+
+/* ═══════════════════════════════════════════════
+   VOTOS
+═══════════════════════════════════════════════ */
+function popupVoto(lineaKey, interno) {
+    return '<div class="vp">' +
+           '<b>¿Cómo viene el Int. ' + interno + '?</b>' +
+           '<div class="vp-row">' +
+           '<button class="vb vb-ll" onclick="window.votar(\'' + lineaKey + '\',\'' + interno + '\',\'lleno\')">LLENO</button>' +
+           '<button class="vb vb-va" onclick="window.votar(\'' + lineaKey + '\',\'' + interno + '\',\'vacio\')">VACÍO</button>' +
+           '</div></div>';
+}
+
+window.votar = function(lineaKey, interno, tipo) {
+    var ahora    = Date.now();
+    var COOLDOWN = 10 * 60 * 1000;
+    if (misVotos[interno] && (ahora - misVotos[interno] < COOLDOWN)) {
+        var rest = Math.ceil((COOLDOWN - (ahora - misVotos[interno])) / 60000);
+        toast('Podés volver a votar en ' + rest + ' min', 'AVISO', '⏳');
+        map.closePopup(); return;
+    }
+    db.ref('micros/' + lineaKey + '/' + interno + '/votos_activos').push({ tipo: tipo, expira: ahora + COOLDOWN });
+    misVotos[interno] = ahora;
+    map.closePopup();
+    toast('¡Reporte enviado! Gracias 👍', 'SCZ LIVE', '✅');
+}
+
+/* ═══════════════════════════════════════════════
+   STATS UI
+═══════════════════════════════════════════════ */
+function actualizarStats(id, dist) {
+    document.getElementById('st-id').innerText   = id;
+    document.getElementById('st-dist').innerText = dist < 1000
+        ? Math.round(dist) + ' m'
+        : (dist / 1000).toFixed(1) + ' km';
+    document.getElementById('st-time').innerText = Math.max(1, Math.round(dist / 417)) + ' min';
+    document.getElementById('st-dist').classList.toggle('lejos', dist > 1000);
+}
+
+function resetStats() {
+    ['st-id','st-dist','st-time'].forEach(function (id) {
+        var el = document.getElementById(id);
+        el.innerText = '--';
+        el.classList.remove('lejos');
+    });
+}
+
+function limpiarBuses() {
+    Object.values(busMarkers).forEach(function (m) { map.removeLayer(m); });
+    busMarkers = {};
+    alertaDada = false;
+}
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+var toastTimer = null;
+
+function toast(msg, titulo, icono, sonido) {
+    titulo = titulo || 'SCZ LIVE';
+    icono  = icono  || '🚌';
+    document.getElementById('t-msg').innerText   = msg;
+    document.getElementById('t-title').innerText = titulo;
+    document.getElementById('t-icon').innerText  = icono;
+
+    var el = document.getElementById('toast');
+    el.classList.add('visible');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('visible'); }, 3800);
+
+    if (sonido) {
+        document.getElementById('snd').play().catch(function () {});
+        if (navigator.vibrate) navigator.vibrate([200, 80, 200]);
+        if (Notification.permission === 'granted') {
+            try { new Notification(titulo, { body: msg }); } catch (e) {}
+        }
+    }
+}
+
+} // fin de initApp()
+</script>
+</body>
+</html>
