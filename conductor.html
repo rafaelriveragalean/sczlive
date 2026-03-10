@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Conductor – SCZ LIVE</title>
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --green:  #39FF14;
+            --violet: #8F00FF;
+            --red:    #ff3131;
+            --bg:     #0a0a0a;
+            --card:   #141414;
+            --border: #222;
+            --muted:  #444;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bot: env(safe-area-inset-bottom, 0px);
+        }
+
+        html, body {
+            width: 100%; min-height: 100%;
+            background: var(--bg); color: #fff;
+            font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        /* ── SPLASH ───────────────────────────────────── */
+        #splash {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--bg);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 12px;
+        }
+        .splash-bolt {
+            font-size: 72px;
+            filter: drop-shadow(0 0 30px var(--violet));
+            animation: boltPop 0.9s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        .splash-title {
+            font-size: 28px; font-weight: 900;
+            letter-spacing: 8px; text-transform: uppercase;
+            animation: fadeUp 0.6s 0.5s both;
+        }
+        .splash-sub {
+            font-size: 11px; color: var(--muted);
+            letter-spacing: 3px; text-transform: uppercase;
+            animation: fadeUp 0.6s 0.7s both;
+        }
+        .splash-loader {
+            margin-top: 36px; width: 36px; height: 36px;
+            border: 3px solid #1a1a1a; border-top-color: var(--violet);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite, fadeUp 0.5s 0.9s both;
+        }
+        @keyframes boltPop { from { transform: scale(0.2) rotate(-30deg); opacity:0; } to { transform: scale(1) rotate(0); opacity:1; } }
+        @keyframes fadeUp  { from { transform: translateY(18px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+        @keyframes spin    { to   { transform: rotate(360deg); } }
+
+        /* ── PANTALLA PIN ─────────────────────────────── */
+        #pin-screen {
+            display: none;
+            position: fixed; inset: 0; z-index: 8000;
+            background: rgba(0,0,0,0.97);
+            align-items: center; justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+        #pin-screen.visible { display: flex; }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+        .pin-card {
+            background: var(--card);
+            border: 1px solid var(--violet);
+            border-radius: 28px; padding: 36px 28px;
+            width: 88%; max-width: 340px; text-align: center;
+            box-shadow: 0 0 60px rgba(143,0,255,0.15);
+            animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes slideUp { from { transform: translateY(40px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+        .pin-icon { font-size: 44px; margin-bottom: 12px; }
+        .pin-card h2 { font-size: 18px; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px; }
+        .pin-card p  { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+
+        #pin-input {
+            width: 100%; background: #000;
+            border: 1px solid var(--violet); border-radius: 14px;
+            color: var(--green); font-size: 32px;
+            text-align: center; padding: 14px;
+            letter-spacing: 14px; outline: none;
+            margin-bottom: 16px;
+            -webkit-appearance: none;
+        }
+        #pin-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(57,255,20,0.1); }
+
+        .pin-error {
+            color: var(--red); font-size: 12px; font-weight: 700;
+            margin-bottom: 12px; min-height: 18px;
+            animation: shake 0.4s ease;
+        }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+
+        .btn-pin-ok {
+            width: 100%; padding: 17px;
+            background: var(--violet); color: #fff;
+            border: none; border-radius: 16px;
+            font-weight: 800; font-size: 14px;
+            letter-spacing: 2px; text-transform: uppercase;
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        .btn-pin-ok:active { opacity: 0.7; }
+
+        .btn-pin-cancel {
+            background: transparent; border: none;
+            color: var(--muted); font-size: 12px;
+            margin-top: 14px; cursor: pointer;
+            display: block; width: 100%; padding: 8px;
+        }
+
+        /* ── CONTENIDO PRINCIPAL ──────────────────────── */
+        #main {
+            padding: calc(var(--safe-top) + 24px) 20px calc(var(--safe-bot) + 24px);
+            max-width: 480px; margin: 0 auto;
+            display: flex; flex-direction: column; gap: 16px;
+            min-height: 100dvh; justify-content: center;
+        }
+
+        /* Header */
+        .header {
+            text-align: center; margin-bottom: 8px;
+        }
+        .header .bolt { font-size: 48px; filter: drop-shadow(0 0 16px var(--violet)); }
+        .header h1 { font-size: 24px; font-weight: 900; letter-spacing: 6px; text-transform: uppercase; margin-top: 6px; }
+        .header p  { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px; padding: 20px;
+        }
+
+        .field-label {
+            font-size: 10px; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 1.5px;
+            margin-bottom: 8px; display: block;
+        }
+
+        select {
+            width: 100%; padding: 15px 14px;
+            border-radius: 14px; border: 1px solid var(--border);
+            background: var(--bg); color: #fff;
+            font-size: 16px; outline: none;
+            -webkit-appearance: none; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 40px;
+        }
+        select:focus { border-color: var(--violet); }
+
+        /* Status display */
+        .status-card {
+            border-radius: 20px; padding: 24px 20px;
+            text-align: center; border: 1px solid var(--border);
+            background: var(--card);
+            transition: border-color 0.4s, background 0.4s;
+        }
+        .status-card.activo {
+            border-color: var(--green);
+            background: rgba(57,255,20,0.04);
+        }
+        .status-card.activo .status-dot { background: var(--green); box-shadow: 0 0 0 6px rgba(57,255,20,0.2); animation: pulse 1.5s infinite; }
+
+        .status-top { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; }
+        .status-dot {
+            width: 12px; height: 12px;
+            background: var(--muted); border-radius: 50%;
+            transition: background 0.4s, box-shadow 0.4s;
+        }
+        @keyframes pulse { 0%,100%{transform:scale(1); opacity:1;} 50%{transform:scale(1.3); opacity:0.6;} }
+
+        .status-label {
+            font-size: 11px; font-weight: 800;
+            letter-spacing: 2px; text-transform: uppercase;
+            color: var(--muted); transition: color 0.4s;
+        }
+        .status-card.activo .status-label { color: var(--green); }
+
+        .status-info {
+            font-size: 13px; color: #555;
+            margin-top: 6px; min-height: 20px;
+            transition: color 0.4s;
+        }
+        .status-card.activo .status-info { color: #999; }
+
+        /* Botón principal */
+        #btn-turno {
+            width: 100%; padding: 20px;
+            border: none; border-radius: 20px;
+            font-weight: 900; font-size: 15px;
+            letter-spacing: 2px; text-transform: uppercase;
+            cursor: pointer; transition: all 0.3s;
+            background: var(--green); color: #000;
+        }
+        #btn-turno:active { transform: scale(0.97); opacity: 0.85; }
+        #btn-turno.detener { background: var(--red); color: #fff; }
+
+        /* GPS info */
+        .gps-row {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .gps-box {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 14px; padding: 14px 12px; text-align: center;
+        }
+        .gps-val { font-size: 15px; font-weight: 800; color: var(--green); display: block; }
+        .gps-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+
+        /* Footer */
+        .footer { text-align: center; font-size: 10px; color: #2a2a2a; letter-spacing: 2px; text-transform: uppercase; padding-top: 8px; }
+
+        /* Toast */
+        #toast {
+            position: fixed; top: calc(16px + var(--safe-top)); left: 50%;
+            transform: translateX(-50%) translateY(-120px);
+            background: rgba(18,18,18,0.97); border: 1px solid var(--violet);
+            border-radius: 18px; padding: 13px 18px;
+            display: flex; align-items: center; gap: 12px;
+            z-index: 9998; width: 88%; max-width: 380px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            transition: transform 0.45s cubic-bezier(0.16,1,0.3,1);
+        }
+        #toast.visible { transform: translateX(-50%) translateY(0); }
+        #t-icon  { font-size: 20px; }
+        #t-title { font-size: 10px; font-weight: 800; color: var(--green); letter-spacing: 1px; text-transform: uppercase; }
+        #t-msg   { font-size: 12px; color: #bbb; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+    <div class="splash-bolt">⚡</div>
+    <h1 class="splash-title">SCZ LIVE</h1>
+    <p class="splash-sub">Conductor · Panel</p>
+    <div class="splash-loader"></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">
+    <div id="t-icon">🚌</div>
+    <div>
+        <div id="t-title">SCZ LIVE</div>
+        <div id="t-msg">Iniciando…</div>
+    </div>
+</div>
+
+<!-- PANTALLA DE PIN -->
+<div id="pin-screen">
+    <div class="pin-card">
+        <div class="pin-icon">🔐</div>
+        <h2>ACCESO CONDUCTOR</h2>
+        <p>Ingresá el PIN de tu línea</p>
+        <input type="password" id="pin-input" maxlength="6"
+               inputmode="numeric" placeholder="••••" autocomplete="off">
+        <div class="pin-error" id="pin-error"></div>
+        <button class="btn-pin-ok" id="btn-pin-ok">VALIDAR</button>
+        <button class="btn-pin-cancel" id="btn-pin-cancel">Cancelar</button>
+    </div>
+</div>
+
+<!-- CONTENIDO PRINCIPAL -->
+<div id="main">
+    <div class="header">
+        <div class="bolt">⚡</div>
+        <h1>SCZ LIVE</h1>
+        <p>Panel del Conductor</p>
+    </div>
+
+    <!-- Selección de línea e interno -->
+    <div class="card" id="selector-card">
+        <span class="field-label">Tu línea</span>
+        <select id="sel-linea">
+            <option value="">Cargando líneas…</option>
+        </select>
+
+        <span class="field-label" style="margin-top:14px">Número de interno</span>
+        <select id="sel-interno">
+            <option value="">--</option>
+        </select>
+    </div>
+
+    <!-- Estado de transmisión -->
+    <div class="status-card" id="status-card">
+        <div class="status-top">
+            <div class="status-dot" id="status-dot"></div>
+            <div class="status-label" id="status-label">SIN TRANSMISIÓN</div>
+        </div>
+        <div class="status-info" id="status-info">Presioná INICIAR TURNO para comenzar</div>
+    </div>
+
+    <!-- GPS en tiempo real (visible solo cuando transmite) -->
+    <div class="gps-row" id="gps-row" style="display:none">
+        <div class="gps-box">
+            <span class="gps-val" id="gps-pulsos">0</span>
+            <div class="gps-lbl">Actualizaciones</div>
+        </div>
+        <div class="gps-box">
+            <span class="gps-val" id="gps-precision">-- m</span>
+            <div class="gps-lbl">Precisión GPS</div>
+        </div>
+    </div>
+
+    <!-- Botón principal -->
+    <button id="btn-turno">INICIAR TURNO</button>
+
+    <div class="footer">SCZ LIVE · CONDUCTOR HUB</div>
+</div>
+
+<!-- Firebase SDK v9 compat -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+/* ══════════════════════════════════════════════
+   SPLASH — cierra sí o sí
+══════════════════════════════════════════════ */
+(function () {
+    var done = false;
+    function cerrar() {
+        if (done) return; done = true;
+        var s = document.getElementById('splash');
+        s.style.transition = 'opacity 0.6s';
+        s.style.opacity = '0';
+        setTimeout(function () { s.style.display = 'none'; }, 650);
+    }
+    setTimeout(cerrar, 3500);
+    window.addEventListener('load', function () { setTimeout(cerrar, 300); });
+})();
+
+/* ══════════════════════════════════════════════
+   FIREBASE
+══════════════════════════════════════════════ */
+firebase.initializeApp({
+    apiKey:            "AIzaSyB1NAPQoYVCkaNRoyiaAmBQSjl29RP7Qu0",
+    authDomain:        "microlive-611a2.firebaseapp.com",
+    databaseURL:       "https://microlive-611a2-default-rtdb.firebaseio.com",
+    projectId:         "microlive-611a2",
+    storageBucket:     "microlive-611a2.firebasestorage.app",
+    messagingSenderId: "951096943513",
+    appId:             "1:951096943513:web:6f72a417e2147674526908"
+});
+var db = firebase.database();
+
+/* ══════════════════════════════════════════════
+   ESTADO GLOBAL
+══════════════════════════════════════════════ */
+var configLineas   = {};    // datos de configuracion_lineas desde Firebase
+var watchID        = null;  // ID del watchPosition activo
+var wakeLock       = null;  // Screen Wake Lock
+var heartbeatTimer = null;  // setInterval del heartbeat
+var lineaActiva    = null;  // key de la línea en turno
+var internoActivo  = null;  // número de interno en turno
+var pulsos         = 0;     // contador de actualizaciones GPS enviadas
+var enTurno        = false; // estado local real
+
+/* ══════════════════════════════════════════════
+   CARGAR LÍNEAS DESDE FIREBASE
+══════════════════════════════════════════════ */
+db.ref('configuracion_lineas').on('value', function (snap) {
+    configLineas = snap.val() || {};
+    var sel = document.getElementById('sel-linea');
+    sel.innerHTML = '<option value="">Elegí tu línea</option>';
+    Object.keys(configLineas).forEach(function (key) {
+        var opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = configLineas[key].nombre;
+        sel.appendChild(opt);
+    });
+    actualizarInternos();
+});
+
+document.getElementById('sel-linea').addEventListener('change', actualizarInternos);
+
+function actualizarInternos() {
+    var lineaKey = document.getElementById('sel-linea').value;
+    var sel = document.getElementById('sel-interno');
+    sel.innerHTML = '<option value="">--</option>';
+    if (lineaKey && configLineas[lineaKey] && configLineas[lineaKey].internos) {
+        configLineas[lineaKey].internos.forEach(function (num) {
+            var opt = document.createElement('option');
+            opt.value = num;
+            opt.textContent = 'Interno ' + num;
+            sel.appendChild(opt);
+        });
+    }
+}
+
+/* ══════════════════════════════════════════════
+   BOTÓN TURNO — abre PIN o detiene
+══════════════════════════════════════════════ */
+document.getElementById('btn-turno').addEventListener('click', function () {
+    if (enTurno) {
+        detenerTurno();
+    } else {
+        abrirPIN();
+    }
+});
+
+/* ══════════════════════════════════════════════
+   PANTALLA DE PIN
+══════════════════════════════════════════════ */
+function abrirPIN() {
+    var lineaKey = document.getElementById('sel-linea').value;
+    var interno  = document.getElementById('sel-interno').value;
+
+    if (!lineaKey) { toast('Elegí tu línea primero', 'AVISO', '⚠️'); return; }
+    if (!interno)  { toast('Elegí tu número de interno', 'AVISO', '⚠️'); return; }
+
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-screen').classList.add('visible');
+    setTimeout(function () { document.getElementById('pin-input').focus(); }, 300);
+}
+
+document.getElementById('btn-pin-cancel').addEventListener('click', function () {
+    document.getElementById('pin-screen').classList.remove('visible');
+});
+
+document.getElementById('btn-pin-ok').addEventListener('click', validarPIN);
+document.getElementById('pin-input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') validarPIN();
+});
+
+function validarPIN() {
+    var lineaKey    = document.getElementById('sel-linea').value;
+    var pinIngresado = document.getElementById('pin-input').value.trim();
+    var pinCorrecto  = configLineas[lineaKey] ? configLineas[lineaKey].pin : null;
+
+    if (!pinCorrecto) { mostrarPinError('Error de configuración'); return; }
+
+    if (pinIngresado === pinCorrecto) {
+        document.getElementById('pin-screen').classList.remove('visible');
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-error').textContent = '';
+        iniciarTurno();
+    } else {
+        mostrarPinError('PIN incorrecto. Intentá de nuevo.');
+        document.getElementById('pin-input').value = '';
+        document.getElementById('pin-input').focus();
+    }
+}
+
+function mostrarPinError(msg) {
+    var el = document.getElementById('pin-error');
+    el.textContent = msg;
+    // Re-trigger animation
+    el.style.animation = 'none';
+    el.offsetHeight; // reflow
+    el.style.animation = 'shake 0.4s ease';
+}
+
+/* ══════════════════════════════════════════════
+   INICIAR TURNO
+══════════════════════════════════════════════ */
+function iniciarTurno() {
+    lineaActiva   = document.getElementById('sel-linea').value;
+    internoActivo = document.getElementById('sel-interno').value;
+
+    if (!lineaActiva || !internoActivo) return;
+
+    // Primero LIMPIAR cualquier registro previo de este interno
+    // (soluciona el bug de micros duplicados)
+    db.ref('micros/' + lineaActiva + '/' + internoActivo).remove();
+
+    enTurno = true;
+    pulsos  = 0;
+
+    // UI: bloquear selects mientras se transmite
+    document.getElementById('sel-linea').disabled   = true;
+    document.getElementById('sel-interno').disabled = true;
+    document.getElementById('selector-card').style.opacity = '0.5';
+
+    // Activar Wake Lock para que la pantalla no se apague
+    activarWakeLock();
+
+    // Iniciar GPS
+    if (!navigator.geolocation) {
+        toast('GPS no disponible', 'ERROR', '❌');
+        detenerTurno(); return;
+    }
+
+    watchID = navigator.geolocation.watchPosition(
+        onGPS,
+        onGPSError,
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+
+    // Heartbeat: actualiza ultimoPulso cada 20s aunque el GPS no cambie
+    // Esto evita que el micro aparezca como "fantasma" cuando se detiene
+    heartbeatTimer = setInterval(function () {
+        if (enTurno && lineaActiva && internoActivo) {
+            db.ref('micros/' + lineaActiva + '/' + internoActivo)
+              .update({ ultimoPulso: Date.now() });
+        }
+    }, 20000);
+
+    // Registrar evento beforeunload para limpiar si cierra la pestaña
+    window.addEventListener('beforeunload', limpiarAlSalir);
+
+    actualizarUI(true);
+    toast('Transmisión iniciada. ¡Buen turno!', 'EN VIVO', '🟢');
+}
+
+/* ══════════════════════════════════════════════
+   GPS CALLBACK
+══════════════════════════════════════════════ */
+function onGPS(pos) {
+    if (!enTurno) return;
+
+    pulsos++;
+    var precision = Math.round(pos.coords.accuracy);
+
+    // Escribir en Firebase — update() no duplica, actualiza el nodo existente
+    db.ref('micros/' + lineaActiva + '/' + internoActivo).update({
+        lat:         pos.coords.latitude,
+        lng:         pos.coords.longitude,
+        ultimoPulso: Date.now(),
+        precision:   precision
+    });
+
+    // Actualizar UI de GPS
+    document.getElementById('gps-pulsos').textContent   = pulsos;
+    document.getElementById('gps-precision').textContent = precision + ' m';
+    document.getElementById('status-info').textContent   =
+        'Última actualización: ' + new Date().toLocaleTimeString('es-BO', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+}
+
+function onGPSError(err) {
+    // No detener el turno por un error de GPS puntual,
+    // solo avisar al conductor
+    toast('GPS con problemas. Verificá tu señal.', 'GPS', '📡');
+}
+
+/* ══════════════════════════════════════════════
+   DETENER TURNO
+══════════════════════════════════════════════ */
+function detenerTurno() {
+    enTurno = false;
+
+    // Detener GPS
+    if (watchID !== null) {
+        navigator.geolocation.clearWatch(watchID);
+        watchID = null;
+    }
+
+    // Detener heartbeat
+    if (heartbeatTimer !== null) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+    }
+
+    // Liberar Wake Lock
+    if (wakeLock) { wakeLock.release().catch(function(){}); wakeLock = null; }
+
+    // CRÍTICO: eliminar el micro de Firebase para que no quede fantasma
+    if (lineaActiva && internoActivo) {
+        db.ref('micros/' + lineaActiva + '/' + internoActivo).remove();
+    }
+
+    lineaActiva   = null;
+    internoActivo = null;
+    pulsos        = 0;
+
+    // Desbloquear selects
+    document.getElementById('sel-linea').disabled   = false;
+    document.getElementById('sel-interno').disabled = false;
+    document.getElementById('selector-card').style.opacity = '1';
+
+    window.removeEventListener('beforeunload', limpiarAlSalir);
+
+    actualizarUI(false);
+    toast('Turno finalizado. ¡Hasta la próxima!', 'FIN DE TURNO', '🏁');
+}
+
+/* Intenta limpiar Firebase si el conductor cierra la pestaña sin presionar Finalizar */
+function limpiarAlSalir() {
+    if (lineaActiva && internoActivo) {
+        // sendBeacon es la única forma confiable de enviar datos al cerrar la pestaña
+        // Firebase no tiene API REST directa, pero podemos usar el SDK sincrónicamente
+        try {
+            db.ref('micros/' + lineaActiva + '/' + internoActivo).remove();
+        } catch(e) {}
+    }
+}
+
+/* ══════════════════════════════════════════════
+   UI
+══════════════════════════════════════════════ */
+function actualizarUI(activo) {
+    var card  = document.getElementById('status-card');
+    var label = document.getElementById('status-label');
+    var info  = document.getElementById('status-info');
+    var btn   = document.getElementById('btn-turno');
+    var gps   = document.getElementById('gps-row');
+
+    if (activo) {
+        card.classList.add('activo');
+        label.textContent = 'TRANSMITIENDO EN VIVO';
+        info.textContent  = 'Iniciando GPS…';
+        btn.textContent   = 'FINALIZAR TURNO';
+        btn.classList.add('detener');
+        gps.style.display = 'grid';
+    } else {
+        card.classList.remove('activo');
+        label.textContent = 'SIN TRANSMISIÓN';
+        info.textContent  = 'Presioná INICIAR TURNO para comenzar';
+        btn.textContent   = 'INICIAR TURNO';
+        btn.classList.remove('detener');
+        gps.style.display = 'none';
+        document.getElementById('gps-pulsos').textContent   = '0';
+        document.getElementById('gps-precision').textContent = '-- m';
+    }
+}
+
+/* ══════════════════════════════════════════════
+   WAKE LOCK — evita que la pantalla se apague
+══════════════════════════════════════════════ */
+async function activarWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+        }
+    } catch (e) { /* silencioso — no es crítico */ }
+}
+
+// Reactivar Wake Lock si el conductor vuelve a la app
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && enTurno) {
+        activarWakeLock();
+    }
+});
+
+/* ══════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════ */
+var toastTimer = null;
+function toast(msg, titulo, icono) {
+    titulo = titulo || 'SCZ LIVE';
+    icono  = icono  || '🚌';
+    document.getElementById('t-msg').textContent   = msg;
+    document.getElementById('t-title').textContent = titulo;
+    document.getElementById('t-icon').textContent  = icono;
+    var el = document.getElementById('toast');
+    el.classList.add('visible');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('visible'); }, 4000);
+}
+</script>
+</body>
+</html>
