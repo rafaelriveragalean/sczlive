@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Admin – SCZ LIVE</title>
+    <meta name="theme-color" content="#050508">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest-admin.json">
+    <link rel="apple-touch-icon" href="icon-admin.svg">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --v:      #8F00FF;
+            --g:      #39FF14;
+            --r:      #ff3131;
+            --y:      #FFD600;
+            --bg:     #050508;
+            --card:   #0e0e14;
+            --card2:  #13131c;
+            --border: #1e1e2e;
+            --muted:  #3a3a55;
+            --text:   #c8c8e0;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bot: env(safe-area-inset-bottom, 0px);
+        }
+
+        html, body {
+            width: 100%; min-height: 100%;
+            background: var(--bg); color: var(--text);
+            font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        /* ── LOGIN ─────────────────────────────────────── */
+        #login {
+            min-height: 100dvh;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 32px 24px;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -10%, rgba(143,0,255,0.18) 0%, transparent 70%),
+                var(--bg);
+        }
+
+        .login-glow {
+            font-size: 70px;
+            filter: drop-shadow(0 0 40px var(--v));
+            animation: boltIn 1s cubic-bezier(0.34,1.56,0.64,1) both;
+            margin-bottom: 16px;
+        }
+        .login-brand {
+            font-size: 30px; font-weight: 900;
+            letter-spacing: 8px; text-transform: uppercase; color: #fff;
+            animation: fadeUp 0.6s 0.5s both;
+        }
+        .login-sub {
+            font-size: 10px; color: var(--muted);
+            letter-spacing: 3px; text-transform: uppercase;
+            margin-top: 6px; margin-bottom: 48px;
+            animation: fadeUp 0.6s 0.7s both;
+        }
+
+        .login-card {
+            width: 100%; max-width: 360px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px; padding: 32px 28px;
+            box-shadow: 0 0 80px rgba(143,0,255,0.08);
+            animation: fadeUp 0.7s 0.9s both;
+        }
+        .login-card h2 { font-size: 13px; font-weight: 700; color: var(--v); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; text-align: center; }
+
+        .btn-google {
+            width: 100%; padding: 16px;
+            background: #fff; color: #111;
+            border: none; border-radius: 14px;
+            font-weight: 700; font-size: 14px;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+        }
+        .btn-google:active { opacity: 0.8; transform: scale(0.98); }
+        .btn-google img { width: 20px; height: 20px; }
+
+        .login-note {
+            font-size: 11px; color: var(--muted); text-align: center;
+            margin-top: 16px; line-height: 1.6;
+        }
+
+        @keyframes boltIn  { from { transform: scale(0.2) rotate(-30deg); opacity:0; } to { transform: scale(1) rotate(0); opacity:1; } }
+        @keyframes fadeUp  { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+        /* ── APP (post-login) ──────────────────────────── */
+        #app { display: none; }
+
+        /* Top nav */
+        #topbar {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(5,5,8,0.95);
+            border-bottom: 1px solid var(--border);
+            padding: calc(var(--safe-top) + 14px) 20px 14px;
+            display: flex; align-items: center; justify-content: space-between;
+            backdrop-filter: blur(12px);
+        }
+        .topbar-left { display: flex; align-items: center; gap: 10px; }
+        .topbar-bolt { font-size: 22px; filter: drop-shadow(0 0 8px var(--v)); }
+        .topbar-title { font-size: 16px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: #fff; }
+        .topbar-badge { font-size: 9px; color: var(--v); border: 1px solid var(--v); border-radius: 6px; padding: 2px 7px; font-weight: 700; letter-spacing: 1px; }
+
+        .user-pill {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--card2); border: 1px solid var(--border);
+            border-radius: 30px; padding: 6px 12px 6px 8px;
+            cursor: pointer; transition: border-color 0.2s;
+        }
+        .user-pill:hover { border-color: var(--r); }
+        .user-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--v); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; overflow: hidden; }
+        .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .user-name { font-size: 11px; font-weight: 600; color: var(--text); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Tabs */
+        #tabs {
+            display: flex; gap: 0;
+            background: var(--card); border-bottom: 1px solid var(--border);
+            overflow-x: auto; scrollbar-width: none;
+        }
+        #tabs::-webkit-scrollbar { display: none; }
+        .tab {
+            flex: 1; min-width: 80px;
+            padding: 14px 12px; text-align: center;
+            font-size: 10px; font-weight: 700;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            color: var(--muted); cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-color 0.2s;
+            white-space: nowrap;
+        }
+        .tab.active { color: var(--g); border-bottom-color: var(--g); }
+        .tab-icon { font-size: 16px; display: block; margin-bottom: 3px; }
+
+        /* Contenido de tabs */
+        .tab-content { display: none; padding: 20px; padding-bottom: calc(var(--safe-bot) + 24px); }
+        .tab-content.active { display: block; }
+
+        /* ── SECCIÓN: DASHBOARD ───────────────────────── */
+        .section-title {
+            font-size: 10px; font-weight: 800;
+            color: var(--muted); letter-spacing: 2px;
+            text-transform: uppercase; margin-bottom: 14px;
+        }
+
+        /* KPI cards */
+        .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .kpi-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 18px; padding: 18px 16px;
+        }
+        .kpi-card.highlight { border-color: rgba(57,255,20,0.3); background: rgba(57,255,20,0.04); }
+        .kpi-val { font-size: 32px; font-weight: 900; color: #fff; line-height: 1; }
+        .kpi-val.green { color: var(--g); }
+        .kpi-val.violet { color: var(--v); }
+        .kpi-val.red { color: var(--r); }
+        .kpi-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 6px; }
+
+        /* Lista de micros en vivo */
+        .live-list { display: flex; flex-direction: column; gap: 8px; }
+        .live-item {
+            background: var(--card2); border: 1px solid var(--border);
+            border-radius: 16px; padding: 14px 16px;
+            display: flex; align-items: center; gap: 14px;
+            animation: itemIn 0.3s ease;
+        }
+        @keyframes itemIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+        .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--g); box-shadow: 0 0 8px var(--g); flex-shrink: 0; animation: livePulse 1.5s infinite; }
+        @keyframes livePulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+        .live-dot.lleno { background: var(--r); box-shadow: 0 0 8px var(--r); }
+
+        .live-info { flex: 1; }
+        .live-linea { font-size: 13px; font-weight: 700; color: #fff; }
+        .live-interno { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .live-tiempo { font-size: 10px; color: var(--muted); text-align: right; }
+        .live-estado {
+            font-size: 9px; font-weight: 800; letter-spacing: 1px;
+            padding: 3px 8px; border-radius: 6px;
+            background: rgba(57,255,20,0.12); color: var(--g);
+            text-transform: uppercase;
+        }
+        .live-estado.lleno { background: rgba(255,49,49,0.12); color: var(--r); }
+
+        .empty-state {
+            text-align: center; padding: 40px 20px;
+            color: var(--muted); font-size: 13px;
+        }
+        .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+
+        /* ── SECCIÓN: LÍNEAS ──────────────────────────── */
+        .form-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 20px; padding: 20px; margin-bottom: 16px;
+        }
+        .form-card h3 { font-size: 11px; font-weight: 800; color: var(--v); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; }
+
+        .field { margin-bottom: 12px; }
+        .field label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; display: block; margin-bottom: 6px; }
+        .field input {
+            width: 100%; padding: 14px;
+            background: var(--bg); color: #fff;
+            border: 1px solid var(--border); border-radius: 12px;
+            font-size: 15px; outline: none;
+            -webkit-appearance: none; transition: border-color 0.2s;
+        }
+        .field input:focus { border-color: var(--v); }
+        .field input.error { border-color: var(--r); }
+
+        .field-hint { font-size: 10px; color: var(--muted); margin-top: 5px; }
+
+        .btn-primary {
+            width: 100%; padding: 16px;
+            background: var(--v); color: #fff;
+            border: none; border-radius: 14px;
+            font-weight: 800; font-size: 13px;
+            letter-spacing: 2px; text-transform: uppercase;
+            cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+            margin-top: 4px;
+        }
+        .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+        .btn-primary.saving { opacity: 0.6; pointer-events: none; }
+
+        /* Lista de líneas */
+        .linea-card {
+            background: var(--card2); border: 1px solid var(--border);
+            border-left: 3px solid var(--v);
+            border-radius: 16px; padding: 16px;
+            margin-bottom: 10px;
+            display: flex; align-items: center; gap: 14px;
+        }
+        .linea-body { flex: 1; }
+        .linea-nombre { font-size: 15px; font-weight: 700; color: #fff; }
+        .linea-meta { font-size: 10px; color: var(--muted); margin-top: 4px; display: flex; gap: 12px; }
+        .linea-meta span { display: flex; align-items: center; gap: 4px; }
+
+        .linea-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .btn-edit {
+            background: rgba(143,0,255,0.12); border: 1px solid rgba(143,0,255,0.3);
+            color: var(--v); padding: 8px 12px;
+            border-radius: 10px; font-size: 11px; font-weight: 700;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .btn-edit:hover { background: rgba(143,0,255,0.25); }
+        .btn-del {
+            background: rgba(255,49,49,0.1); border: 1px solid rgba(255,49,49,0.3);
+            color: var(--r); padding: 8px 12px;
+            border-radius: 10px; font-size: 11px; font-weight: 700;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .btn-del:hover { background: rgba(255,49,49,0.2); }
+
+        /* ── MODAL CONFIRMAR ──────────────────────────── */
+        #modal {
+            display: none; position: fixed; inset: 0; z-index: 9000;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+            align-items: center; justify-content: center; padding: 24px;
+        }
+        #modal.visible { display: flex; }
+        .modal-box {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 24px; padding: 28px 24px;
+            width: 100%; max-width: 320px; text-align: center;
+            animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes slideUp { from { transform: translateY(30px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+        .modal-icon { font-size: 40px; margin-bottom: 14px; }
+        .modal-title { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+        .modal-msg { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 24px; }
+        .modal-actions { display: flex; gap: 10px; }
+        .modal-cancel { flex: 1; padding: 14px; background: var(--card2); border: 1px solid var(--border); color: var(--text); border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; }
+        .modal-confirm { flex: 1; padding: 14px; background: var(--r); border: none; color: #fff; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer; }
+
+        /* ── TOAST ────────────────────────────────────── */
+        #toast {
+            position: fixed; bottom: calc(var(--safe-bot) + 24px); left: 50%;
+            transform: translateX(-50%) translateY(120px);
+            background: rgba(14,14,20,0.98); border: 1px solid var(--border);
+            border-radius: 16px; padding: 13px 20px;
+            display: flex; align-items: center; gap: 10px;
+            z-index: 9999; max-width: 340px; width: 88%;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
+        }
+        #toast.visible { transform: translateX(-50%) translateY(0); }
+        #t-icon  { font-size: 18px; }
+        #t-msg   { font-size: 13px; color: #fff; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+    <div class="login-glow">⚡</div>
+    <div class="login-brand">SCZ LIVE</div>
+    <div class="login-sub">Centro de Control</div>
+
+    <div class="login-card">
+        <h2>Acceso Administrador</h2>
+        <button class="btn-google" id="btn-google">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+            Continuar con Google
+        </button>
+        <p class="login-note">Solo cuentas autorizadas pueden<br>acceder al panel de control.</p>
+    </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app">
+
+    <!-- Top bar -->
+    <div id="topbar">
+        <div class="topbar-left">
+            <span class="topbar-bolt">⚡</span>
+            <span class="topbar-title">SCZ LIVE</span>
+            <span class="topbar-badge">ADMIN</span>
+        </div>
+        <div class="user-pill" id="user-pill" title="Cerrar sesión">
+            <div class="user-avatar" id="user-avatar"></div>
+            <span class="user-name" id="user-name"></span>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div id="tabs">
+        <div class="tab active" data-tab="dashboard">
+            <span class="tab-icon">📡</span>En Vivo
+        </div>
+        <div class="tab" data-tab="lineas">
+            <span class="tab-icon">🚌</span>Líneas
+        </div>
+    </div>
+
+    <!-- TAB: DASHBOARD ─────────────────────────── -->
+    <div class="tab-content active" id="tab-dashboard">
+
+        <p class="section-title">Resumen del sistema</p>
+        <div class="kpi-grid">
+            <div class="kpi-card highlight">
+                <div class="kpi-val green" id="kpi-activos">0</div>
+                <div class="kpi-lbl">Micros activos</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val violet" id="kpi-lineas">0</div>
+                <div class="kpi-lbl">Líneas totales</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-llenos">0</div>
+                <div class="kpi-lbl">Reportes llenos</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-lineas-vivas">0</div>
+                <div class="kpi-lbl">Líneas con servicio</div>
+            </div>
+        </div>
+
+        <p class="section-title">Micros transmitiendo ahora</p>
+        <div class="live-list" id="live-list">
+            <div class="empty-state">
+                <span class="empty-icon">🔍</span>
+                Cargando datos en tiempo real…
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TAB: LÍNEAS ────────────────────────────── -->
+    <div class="tab-content" id="tab-lineas">
+
+        <!-- Formulario -->
+        <div class="form-card">
+            <h3 id="form-title">Nueva Línea</h3>
+
+            <div class="field">
+                <label>ID de línea</label>
+                <input type="text" id="f-id" placeholder="ej: linea47" autocomplete="off" autocapitalize="none">
+                <div class="field-hint">Solo letras minúsculas y números, sin espacios</div>
+            </div>
+            <div class="field">
+                <label>Nombre visible</label>
+                <input type="text" id="f-nombre" placeholder="ej: Línea 47">
+            </div>
+            <div class="field">
+                <label>Números de internos</label>
+                <input type="text" id="f-internos" placeholder="ej: 1, 2, 3, 45, 100">
+                <div class="field-hint">Separados por comas</div>
+            </div>
+            <div class="field">
+                <label>PIN de conductores</label>
+                <input type="password" id="f-pin" placeholder="••••" maxlength="8" inputmode="numeric" autocomplete="new-password">
+                <div class="field-hint">Código numérico que usarán los choferes para iniciar turno</div>
+            </div>
+
+            <button class="btn-primary" id="btn-guardar">GUARDAR LÍNEA</button>
+            <button class="btn-primary" id="btn-cancelar-edit"
+                    style="display:none; margin-top:8px; background:var(--card2); border:1px solid var(--border); color:var(--text);">
+                CANCELAR EDICIÓN
+            </button>
+        </div>
+
+        <!-- Lista de líneas -->
+        <p class="section-title">Líneas configuradas</p>
+        <div id="lista-lineas">
+            <div class="empty-state">
+                <span class="empty-icon">📋</span>
+                Cargando líneas…
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- MODAL CONFIRMACIÓN -->
+<div id="modal">
+    <div class="modal-box">
+        <div class="modal-icon">🗑️</div>
+        <div class="modal-title">¿Borrar línea?</div>
+        <div class="modal-msg" id="modal-msg">Esta acción no se puede deshacer.</div>
+        <div class="modal-actions">
+            <button class="modal-cancel" id="modal-cancel">Cancelar</button>
+            <button class="modal-confirm" id="modal-confirm">Borrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">
+    <div id="t-icon">✅</div>
+    <div id="t-msg">Listo</div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+/* ══════════════════════════════════════════════
+   FIREBASE INIT
+══════════════════════════════════════════════ */
+firebase.initializeApp({
+    apiKey:            "AIzaSyB1NAPQoYVCkaNRoyiaAmBQSjl29RP7Qu0",
+    authDomain:        "microlive-611a2.firebaseapp.com",
+    databaseURL:       "https://microlive-611a2-default-rtdb.firebaseio.com",
+    projectId:         "microlive-611a2",
+    storageBucket:     "microlive-611a2.firebasestorage.app",
+    messagingSenderId: "951096943513",
+    appId:             "1:951096943513:web:6f72a417e2147674526908"
+});
+var auth = firebase.auth();
+var db   = firebase.database();
+
+var CORREO_AUTORIZADO = "rafaelriveragaleanrg@gmail.com";
+
+/* ══════════════════════════════════════════════
+   AUTENTICACIÓN
+══════════════════════════════════════════════ */
+// Manejar redirect de Google al volver
+auth.getRedirectResult().catch(function(err) {
+    if (err.code) toast('Error al iniciar sesión. Intentá de nuevo.', '❌');
+});
+
+auth.onAuthStateChanged(function (user) {
+    if (user) {
+        if (user.email === CORREO_AUTORIZADO) {
+            mostrarApp(user);
+        } else {
+            auth.signOut();
+            toast('Acceso denegado para ' + user.email, '🚫');
+        }
+    } else {
+        document.getElementById('login').style.display = 'flex';
+        document.getElementById('app').style.display   = 'none';
+    }
+});
+
+document.getElementById('btn-google').addEventListener('click', function () {
+    var provider = new firebase.auth.GoogleAuthProvider();
+    // Usar popup en desktop, redirect en móvil
+    if (/Mobi|Android/i.test(navigator.userAgent)) {
+        auth.signInWithRedirect(provider);
+    } else {
+        auth.signInWithPopup(provider).catch(function(err) {
+            toast('Error al iniciar sesión', '❌');
+        });
+    }
+});
+
+document.getElementById('user-pill').addEventListener('click', function () {
+    if (confirm('¿Cerrar sesión?')) auth.signOut();
+});
+
+function mostrarApp(user) {
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('app').style.display   = 'block';
+
+    // Mostrar datos del usuario
+    var nombre = user.displayName || user.email.split('@')[0];
+    document.getElementById('user-name').textContent = nombre;
+
+    var avatarEl = document.getElementById('user-avatar');
+    if (user.photoURL) {
+        avatarEl.innerHTML = '<img src="' + user.photoURL + '" alt="">';
+    } else {
+        avatarEl.textContent = nombre.charAt(0).toUpperCase();
+    }
+
+    // Iniciar escuchas de Firebase
+    escucharLineas();
+    escucharMicrosVivos();
+}
+
+/* ══════════════════════════════════════════════
+   TABS
+══════════════════════════════════════════════ */
+document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+        var target = this.dataset.tab;
+        document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+        document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
+        this.classList.add('active');
+        document.getElementById('tab-' + target).classList.add('active');
+    });
+});
+
+/* ══════════════════════════════════════════════
+   DASHBOARD — Micros en vivo
+══════════════════════════════════════════════ */
+var configCache = {};   // cache local de configuracion_lineas
+var TIMEOUT_MS  = 35000;
+
+function escucharLineas() {
+    db.ref('configuracion_lineas').on('value', function (snap) {
+        configCache = snap.val() || {};
+        var total = Object.keys(configCache).length;
+        document.getElementById('kpi-lineas').textContent = total;
+        renderizarListaLineas(configCache);
+    });
+}
+
+function escucharMicrosVivos() {
+    db.ref('micros').on('value', function (snap) {
+        var data  = snap.val() || {};
+        var ahora = Date.now();
+        var totalActivos  = 0;
+        var totalLlenos   = 0;
+        var lineasConServ = new Set();
+        var items = [];
+
+        Object.keys(data).forEach(function (lineaKey) {
+            var micros = data[lineaKey];
+            Object.keys(micros).forEach(function (interno) {
+                var m = micros[interno];
+                if (!m.ultimoPulso || (ahora - m.ultimoPulso > TIMEOUT_MS)) return;
+
+                totalActivos++;
+                lineasConServ.add(lineaKey);
+
+                // Contar votos llenos activos
+                var votos = m.votos_activos || {};
+                var llenos = Object.values(votos).filter(function(v) { return v.tipo === 'lleno' && ahora < v.expira; }).length;
+                if (llenos >= 3) totalLlenos++;
+
+                var segs = Math.round((ahora - m.ultimoPulso) / 1000);
+                var nombreLinea = configCache[lineaKey] ? configCache[lineaKey].nombre : lineaKey;
+
+                items.push({
+                    lineaKey:    lineaKey,
+                    lineaNombre: nombreLinea,
+                    interno:     interno,
+                    lleno:       llenos >= 3,
+                    hace:        segs < 60 ? segs + 's' : Math.round(segs/60) + 'min',
+                    precision:   m.precision ? m.precision + 'm' : '--'
+                });
+            });
+        });
+
+        // KPIs
+        document.getElementById('kpi-activos').textContent      = totalActivos;
+        document.getElementById('kpi-llenos').textContent       = totalLlenos;
+        document.getElementById('kpi-lineas-vivas').textContent = lineasConServ.size;
+
+        // Lista
+        var lista = document.getElementById('live-list');
+        if (items.length === 0) {
+            lista.innerHTML = '<div class="empty-state"><span class="empty-icon">🚌</span>Sin micros transmitiendo ahora mismo</div>';
+            return;
+        }
+
+        lista.innerHTML = '';
+        items.forEach(function (item) {
+            var div = document.createElement('div');
+            div.className = 'live-item';
+            div.innerHTML =
+                '<div class="live-dot' + (item.lleno ? ' lleno' : '') + '"></div>' +
+                '<div class="live-info">' +
+                    '<div class="live-linea">' + item.lineaNombre + '</div>' +
+                    '<div class="live-interno">Interno ' + item.interno + ' · GPS ±' + item.precision + '</div>' +
+                '</div>' +
+                '<div style="text-align:right">' +
+                    '<div class="live-estado' + (item.lleno ? ' lleno' : '') + '">' + (item.lleno ? 'LLENO' : 'ACTIVO') + '</div>' +
+                    '<div class="live-tiempo" style="margin-top:4px">hace ' + item.hace + '</div>' +
+                '</div>';
+            lista.appendChild(div);
+        });
+    });
+}
+
+/* ══════════════════════════════════════════════
+   GESTIÓN DE LÍNEAS
+══════════════════════════════════════════════ */
+var editandoKey = null; // si estamos editando una línea existente
+
+document.getElementById('btn-guardar').addEventListener('click', guardarLinea);
+
+function guardarLinea() {
+    var id       = document.getElementById('f-id').value.toLowerCase().replace(/\s/g,'').trim();
+    var nombre   = document.getElementById('f-nombre').value.trim();
+    var internosStr = document.getElementById('f-internos').value.trim();
+    var pin      = document.getElementById('f-pin').value.trim();
+
+    // Validaciones
+    var ok = true;
+    if (!id || !/^[a-z0-9_]+$/.test(id)) { marcarError('f-id'); ok = false; }
+    if (!nombre)      { marcarError('f-nombre'); ok = false; }
+    if (!internosStr) { marcarError('f-internos'); ok = false; }
+    if (!pin || pin.length < 4) { marcarError('f-pin'); ok = false; }
+
+    if (!ok) { toast('Completá todos los campos correctamente', '⚠️'); return; }
+
+    var internos = internosStr.split(',').map(function(x) { return x.trim(); }).filter(Boolean);
+
+    var btn = document.getElementById('btn-guardar');
+    btn.classList.add('saving');
+    btn.textContent = 'GUARDANDO…';
+
+    // Si estamos editando, usamos el key original; si es nueva, usamos el ID
+    var key = editandoKey || id;
+
+    db.ref('configuracion_lineas/' + key).set({
+        nombre:   nombre,
+        internos: internos,
+        pin:      pin
+    }).then(function () {
+        toast('Línea "' + nombre + '" guardada correctamente', '✅');
+        limpiarFormulario();
+    }).catch(function () {
+        toast('Error al guardar. Verificá tu conexión.', '❌');
+    }).finally(function () {
+        btn.classList.remove('saving');
+        btn.textContent = 'GUARDAR LÍNEA';
+    });
+}
+
+function marcarError(id) {
+    var el = document.getElementById(id);
+    el.classList.add('error');
+    setTimeout(function () { el.classList.remove('error'); }, 2000);
+}
+
+function limpiarFormulario() {
+    ['f-id','f-nombre','f-internos','f-pin'].forEach(function(id) {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('f-id').disabled = false;
+    document.getElementById('form-title').textContent = 'Nueva Línea';
+    document.getElementById('btn-cancelar-edit').style.display = 'none';
+    editandoKey = null;
+}
+
+document.getElementById('btn-cancelar-edit').addEventListener('click', limpiarFormulario);
+
+/* ── Editar línea ── */
+function editarLinea(key) {
+    var linea = configCache[key];
+    if (!linea) return;
+
+    editandoKey = key;
+    document.getElementById('f-id').value      = key;
+    document.getElementById('f-id').disabled   = true; // No cambiar el ID al editar
+    document.getElementById('f-nombre').value  = linea.nombre;
+    document.getElementById('f-internos').value = Array.isArray(linea.internos) ? linea.internos.join(', ') : '';
+    document.getElementById('f-pin').value     = linea.pin;
+    document.getElementById('form-title').textContent = 'Editando: ' + linea.nombre;
+    document.getElementById('btn-cancelar-edit').style.display = 'block';
+
+    // Ir al tab de líneas y hacer scroll al formulario
+    document.querySelector('[data-tab="lineas"]').click();
+    document.getElementById('f-nombre').focus();
+    document.querySelector('.form-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ── Eliminar línea ── */
+var pendingDeleteKey = null;
+
+function confirmarEliminar(key, nombre) {
+    pendingDeleteKey = key;
+    document.getElementById('modal-msg').textContent =
+        'Vas a borrar "' + nombre + '" y todos sus datos. Esta acción no se puede deshacer.';
+    document.getElementById('modal').classList.add('visible');
+}
+
+document.getElementById('modal-cancel').addEventListener('click', function () {
+    document.getElementById('modal').classList.remove('visible');
+    pendingDeleteKey = null;
+});
+
+document.getElementById('modal-confirm').addEventListener('click', function () {
+    if (!pendingDeleteKey) return;
+    db.ref('configuracion_lineas/' + pendingDeleteKey).remove().then(function () {
+        toast('Línea eliminada', '🗑️');
+    }).catch(function () {
+        toast('Error al eliminar', '❌');
+    });
+    document.getElementById('modal').classList.remove('visible');
+    pendingDeleteKey = null;
+});
+
+/* ── Renderizar lista de líneas ── */
+function renderizarListaLineas(data) {
+    var lista = document.getElementById('lista-lineas');
+
+    if (!data || Object.keys(data).length === 0) {
+        lista.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span>No hay líneas configuradas aún.<br>Creá la primera usando el formulario.</div>';
+        return;
+    }
+
+    lista.innerHTML = '';
+    Object.keys(data).forEach(function (key) {
+        var linea = data[key];
+        var internos = Array.isArray(linea.internos) ? linea.internos : [];
+
+        var card = document.createElement('div');
+        card.className = 'linea-card';
+        card.innerHTML =
+            '<div class="linea-body">' +
+                '<div class="linea-nombre">' + linea.nombre + '</div>' +
+                '<div class="linea-meta">' +
+                    '<span>🔑 ' + key + '</span>' +
+                    '<span>🚌 ' + internos.length + ' internos</span>' +
+                    '<span>🔐 PIN: ' + linea.pin + '</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="linea-actions">' +
+                '<button class="btn-edit">Editar</button>' +
+                '<button class="btn-del">Borrar</button>' +
+            '</div>';
+
+        card.querySelector('.btn-edit').addEventListener('click', function () { editarLinea(key); });
+        card.querySelector('.btn-del').addEventListener('click', function () { confirmarEliminar(key, linea.nombre); });
+
+        lista.appendChild(card);
+    });
+}
+
+/* ══════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════ */
+var toastTimer = null;
+function toast(msg, icono) {
+    icono = icono || 'ℹ️';
+    document.getElementById('t-msg').textContent  = msg;
+    document.getElementById('t-icon').textContent = icono;
+    var el = document.getElementById('toast');
+    el.classList.add('visible');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('visible'); }, 4000);
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw-admin.js')
+    .catch(function(e){ console.log('SW error:', e); });
+}
+</script>
+</body>
+</html>
