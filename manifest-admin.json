@@ -1,0 +1,26 @@
+{
+  "name": "SCZ LIVE Admin",
+  "short_name": "SCZ Admin",
+  "description": "SCZ LIVE - Santa Cruz, Bolivia",
+  "start_url": "/sczlive/admin.html",
+  "scope": "/sczlive/admin.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#8F00FF",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icon-admin.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-admin.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

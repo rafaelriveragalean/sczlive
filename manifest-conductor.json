@@ -1,0 +1,20 @@
+{
+  "name": "SCZ LIVE Conductor",
+  "short_name": "SCZ LIVE",
+  "description": "SCZ LIVE - Santa Cruz, Bolivia",
+  "start_url": "/sczlive/conductor.html",
+  "scope": "/sczlive/conductor.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0a",
+  "theme_color": "#39FF14",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icon-conductor.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
