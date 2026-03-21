@@ -167,15 +167,67 @@
             display: none;
         }
 
-        /* Select línea */
-        select {
-            width: 100%; padding: 14px 12px;
+        /* ── SELECTOR PERSONALIZADO ───────────────────── */
+        /* Ocultar el select nativo */
+        #sel-linea { display: none; }
+
+        /* Botón disparador del dropdown */
+        #linea-trigger {
+            width: 100%; padding: 14px 16px;
             border-radius: 14px; border: 1px solid var(--border);
-            background: var(--bg); color: #fff;
-            font-size: 15px; outline: none;
-            -webkit-appearance: none; appearance: none;
+            background: var(--bg); color: var(--muted);
+            font-size: 14px; font-weight: 600;
+            display: flex; align-items: center; gap: 10px;
+            cursor: pointer; transition: border-color 0.2s;
+            position: relative;
         }
-        select:focus { border-color: var(--violet); }
+        #linea-trigger.seleccionado { color: #fff; border-color: var(--violet); }
+        #linea-trigger .trigger-icon { font-size: 18px; flex-shrink: 0; }
+        #linea-trigger .trigger-text { flex: 1; text-align: left; }
+        #linea-trigger .trigger-arrow {
+            font-size: 12px; color: var(--muted);
+            transition: transform 0.3s;
+        }
+        #linea-trigger.abierto .trigger-arrow { transform: rotate(180deg); }
+
+        /* Dropdown */
+        #linea-dropdown {
+            display: none;
+            position: absolute;
+            left: 18px; right: 18px;
+            bottom: calc(100% + 8px); /* aparece ARRIBA del panel */
+            background: #111;
+            border: 1px solid var(--violet);
+            border-radius: 18px;
+            overflow: hidden;
+            z-index: 2000;
+            box-shadow: 0 -8px 40px rgba(143,0,255,0.25);
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        #linea-dropdown.visible { display: block; animation: dropUp 0.25s cubic-bezier(0.16,1,0.3,1); }
+        @keyframes dropUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+
+        .linea-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 15px 18px;
+            border-bottom: 1px solid #1a1a1a;
+            cursor: pointer; transition: background 0.15s;
+            color: #fff; font-size: 14px; font-weight: 600;
+        }
+        .linea-item:last-child { border-bottom: none; }
+        .linea-item:active { background: rgba(143,0,255,0.12); }
+        .linea-item .li-icon { font-size: 20px; flex-shrink: 0; }
+        .linea-item .li-nombre { flex: 1; }
+        .linea-item.activa { background: rgba(143,0,255,0.1); color: var(--violet); }
+        .linea-item.activa .li-check { color: var(--violet); font-size: 14px; }
+        .linea-item:not(.activa) .li-check { display: none; }
+
+        /* Overlay para cerrar al tocar fuera */
+        #linea-overlay {
+            display: none; position: fixed; inset: 0; z-index: 1999;
+        }
+        #linea-overlay.visible { display: block; }
 
         /* Botón principal */
         #btn-buscar {
@@ -308,9 +360,21 @@
             <button id="btn-cambiar">Cambiar</button>
         </div>
 
-        <select id="sel-linea">
-            <option value="">¿Qué línea buscas?</option>
-        </select>
+        <!-- Select nativo oculto (mantiene la lógica original) -->
+        <select id="sel-linea"></select>
+
+        <!-- Overlay para cerrar dropdown -->
+        <div id="linea-overlay"></div>
+
+        <!-- Selector visual personalizado -->
+        <div id="linea-trigger">
+            <span class="trigger-icon">🚌</span>
+            <span class="trigger-text" id="trigger-text">¿Qué línea buscas?</span>
+            <span class="trigger-arrow">▼</span>
+        </div>
+
+        <!-- Dropdown personalizado -->
+        <div id="linea-dropdown"></div>
 
         <button id="btn-buscar">BUSCAR MICRO</button>
 
@@ -514,15 +578,76 @@ db.ref('configuracion_lineas').on('value', function (snap) {
     var sel  = document.getElementById('sel-linea');
     var data = snap.val();
     sel.innerHTML = '<option value="">¿Qué línea buscas?</option>';
+    var dropdown = document.getElementById('linea-dropdown');
+    dropdown.innerHTML = '';
+
     if (data) {
         Object.keys(data).forEach(function (key) {
+            // Poblar select nativo (para mantener lógica)
             var opt = document.createElement('option');
             opt.value = key;
             opt.textContent = data[key].nombre;
             sel.appendChild(opt);
+
+            // Poblar dropdown visual
+            var item = document.createElement('div');
+            item.className = 'linea-item';
+            item.dataset.value = key;
+            item.dataset.nombre = data[key].nombre;
+            item.innerHTML =
+                '<span class="li-icon">🚌</span>' +
+                '<span class="li-nombre">' + data[key].nombre + '</span>' +
+                '<span class="li-check">✓</span>';
+            item.addEventListener('click', function () {
+                seleccionarLinea(key, data[key].nombre);
+            });
+            dropdown.appendChild(item);
         });
     }
 });
+
+/* ── Lógica del dropdown personalizado ── */
+var dropdownAbierto = false;
+
+document.getElementById('linea-trigger').addEventListener('click', function () {
+    dropdownAbierto ? cerrarDropdown() : abrirDropdown();
+});
+
+document.getElementById('linea-overlay').addEventListener('click', function () {
+    cerrarDropdown();
+});
+
+function abrirDropdown() {
+    dropdownAbierto = true;
+    document.getElementById('linea-dropdown').classList.add('visible');
+    document.getElementById('linea-overlay').classList.add('visible');
+    document.getElementById('linea-trigger').classList.add('abierto');
+}
+
+function cerrarDropdown() {
+    dropdownAbierto = false;
+    document.getElementById('linea-dropdown').classList.remove('visible');
+    document.getElementById('linea-overlay').classList.remove('visible');
+    document.getElementById('linea-trigger').classList.remove('abierto');
+}
+
+function seleccionarLinea(value, nombre) {
+    // Actualizar select nativo
+    var sel = document.getElementById('sel-linea');
+    sel.value = value;
+
+    // Actualizar visual del trigger
+    var trigger = document.getElementById('linea-trigger');
+    document.getElementById('trigger-text').textContent = nombre;
+    trigger.classList.add('seleccionado');
+
+    // Marcar ítem activo
+    document.querySelectorAll('.linea-item').forEach(function (el) {
+        el.classList.toggle('activa', el.dataset.value === value);
+    });
+
+    cerrarDropdown();
+}
 
 /* ═══════════════════════════════════════════════
    DESTINO — FIJAR / CAMBIAR
